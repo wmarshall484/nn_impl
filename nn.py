@@ -9,6 +9,7 @@ pv = df[['Close', 'Volume']]
 pv = pv.to_numpy()
 
 LOOKBACK = 2
+NUM_BATCHES = 3
 
 # Dimension of the data point
 DPOINT_DIMENSION = len(pv[0])
@@ -86,6 +87,8 @@ def train():
     prev_error = sum((train_y - yhat)**2)[0]
     global j
     while True:
+        batchsize = int(len(train_X)/NUM_BATCHES)
+        batch = j % NUM_BATCHES
         # d_Ws = [1 + (np.random.randint(2, size=x)*2 - 1) * LEARNING_RATE for x in W_sizes]
         # d_bs = [1 + (np.random.randint(2, size=(1,x[1]))*2 - 1) * LEARNING_RATE for x in W_sizes]
         d_Ws = [(np.random.randint(2, size=x)*2 - 1) * LEARNING_RATE for x in W_sizes]
@@ -95,19 +98,21 @@ def train():
             Ws[i] += d_Ws[i]
             bs[i] += d_bs[i]
         try:
-
-            yhat = feed_forward(train_X)
-            error = sum((train_y - yhat)**2)[0]
+            xbatch=train_X[batch*batchsize:(batch+1)*batchsize]
+            print(f'THE MIDDLE DATA POINT IS {[f'{_x:5f}' for _x in xbatch[len(xbatch)//2]]}')
+            yhat = feed_forward(xbatch)
+            error = sum((train_y[batch*batchsize:(batch+1)*batchsize] - yhat)**2)[0]
 
             if error < prev_error:
                 # test_yhat = feed_forward(test_X)
                 # test_error = sum((test_y - test_yhat)**2)[0]
-                for x,y,yhat in zip(train_X[-10:], train_y[-10:], yhat[-10:]):
+                for x,y,yhat in zip(train_X[-40:], train_y[-40:], yhat[-40:]):
                     p_x = ', '.join([f'{_x:5f}' for _x in x])
                     p_y = ', '.join([f'{_y:5f}' for _y in y])
                     p_yhat = ', '.join([f'{_yhat:5f}' for _yhat in yhat])
                     print(p_x, ' --> ', p_y, f'(guess: {p_yhat})')
                 print()
+                print('Ws')
                 for w in Ws:
                     print(w)
                     print()
