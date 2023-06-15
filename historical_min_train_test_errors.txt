@@ -1,0 +1,20 @@
+## Neural nets with 1 hidden layer
+
+Initially batch_size = 32
+Hidden layer size = input dimension size
+Learning rate = 5e-23
+
+# Increasing batchsize to 1053
+Avg train loss:        115325.055091
+Avg test loss :         71671.991687
+
+# Changing the batchsize to the size of the dataset
+Avg train loss:          9515.984716
+Avg test loss :         66675.703985
+
+# Doubling the size of the hiden layer
+Avg train loss:         21710.221076
+Avg test loss :        152190.835323
+
+
+

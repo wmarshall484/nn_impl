@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 
 lookup = dict(K=1_000, M=1_000_000, B=1_000_000_000)
-LEARNING_RATE = 0.001
+LEARNING_RATE = 0.00001
 
 df = pd.read_csv('./BTC-USD.csv')
 pv = df[['Close', 'Volume']]
@@ -10,6 +10,7 @@ pv = pv.to_numpy()
 
 LOOKBACK = 2
 NUM_BATCHES = 3
+PRINT_THRESHOLD = 0
 
 # Dimension of the data point
 DPOINT_DIMENSION = len(pv[0])
@@ -59,13 +60,15 @@ test_X = test_X_flat
 W_sizes = [
     (DPOINT_DIMENSION * LOOKBACK, DPOINT_DIMENSION * LOOKBACK),
     (DPOINT_DIMENSION * LOOKBACK, DPOINT_DIMENSION * LOOKBACK),
-    (DPOINT_DIMENSION * LOOKBACK, DPOINT_DIMENSION * LOOKBACK),
     (DPOINT_DIMENSION * LOOKBACK, 1)
 ]
 
 sigmoid = lambda x: 1/(1 + np.exp(-x))
 Ws = [(np.random.rand(*x)*.1 - .05) + 1 for x in W_sizes]
 bs = [(np.random.rand(1, x[1])*.1 - .05) + 1 for x in W_sizes]
+
+j = 0
+
 
 def feed_forward(_input):
     activation = _input
@@ -75,12 +78,26 @@ def feed_forward(_input):
             activation = activation @ Ws[i] + bs[i]
         else:
             # ReLU
-            _activ = activation @ Ws[i] + bs[i]
-            activation = np.maximum(_activ, 0.001 * _activ)
+            activation = np.maximum(activation, 0.01 * activation)
             # activation = sigmoid(activation @ Ws[i] + bs[i])
     return activation
 
-j = 0
+[[1.02260771,0.93614776,0.93783942,1.08449955]
+,[1.06739409,0.99453117,0.99174815,0.98399924]
+,[0.93809163,0.94663858,0.93152062,1.11085357]
+,[0.99757263,0.94893352,0.94801712,0.9947803,]]
+
+[[1.03075552,1.0727854,,1.10769198,0.92988107]
+,[1.01210183,0.98807431,1.01508494,1.01124611]
+,[1.0674277,,0.98756471,1.01602959,1.03849076]
+,[0.94279495,0.9382487,,1.08384029,0.97078637]]
+
+[[1.08451098e+00]
+,[-7.92570908e-08]
+,[9.66204316e-01]
+,[-6.86738017e-08]]
+
+
 
 def train():
     yhat = feed_forward(train_X)
@@ -99,31 +116,41 @@ def train():
             bs[i] += d_bs[i]
         try:
             xbatch=train_X[batch*batchsize:(batch+1)*batchsize]
-            print(f'THE MIDDLE DATA POINT IS {[f'{_x:5f}' for _x in xbatch[len(xbatch)//2]]}')
+            mdp = xbatch[len(xbatch)//2]
+            s = [f'{_x}' for _x in mdp]
             yhat = feed_forward(xbatch)
             error = sum((train_y[batch*batchsize:(batch+1)*batchsize] - yhat)**2)[0]
 
-            if error < prev_error:
+            if error < prev_error and j > PRINT_THRESHOLD and j%100==0:
                 # test_yhat = feed_forward(test_X)
                 # test_error = sum((test_y - test_yhat)**2)[0]
-                for x,y,yhat in zip(train_X[-40:], train_y[-40:], yhat[-40:]):
+                for x,y,iyhat in zip(train_X[-20:], train_y[-20:], yhat[-20:]):
                     p_x = ', '.join([f'{_x:5f}' for _x in x])
                     p_y = ', '.join([f'{_y:5f}' for _y in y])
-                    p_yhat = ', '.join([f'{_yhat:5f}' for _yhat in yhat])
+                    p_yhat = ', '.join([f'{_yhat}' for _yhat in iyhat])
                     print(p_x, ' --> ', p_y, f'(guess: {p_yhat})')
                 print()
                 print('Ws')
                 for w in Ws:
                     print(w)
                     print()
+                print('bs')
+                for b in bs:
+                    print(b)
+                    print()
                 test_yhat = feed_forward(test_X)
                 test_error = sum((test_y - test_yhat)**2)[0]
-                print(f'TRAINING_ERROR({j}): {error}', f'LEARNING RATE: {LEARNING_RATE}')
-                print(f'TESTING_ERROR: {test_error}')
+                print(f'TRAINING_ERROR({j}): {error/len(train_y)}', f'LEARNING RATE: {LEARNING_RATE}')
+                print(f'TESTING_ERROR: {test_error/len(test_y)}')
+
+                print()
+                print(f'yhat min: {yhat.min()}')
+                print(f'yhat max: {yhat.max()}')
+                print(f'yhat average: {np.average(yhat)}')
+                print(f'train_y average: {np.average(train_y)}')
                 print()
 
                 prev_error = error
-                print(f'sum at the bottom {sum([sum(x.flatten()) for x in Ws])}')
                 continue
         except:
             print('in except')
