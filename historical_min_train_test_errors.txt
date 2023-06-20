@@ -1,6 +1,6 @@
 ## Neural nets with 1 hidden layer
 
-Initially batch_size = 32
+Initial batch_size = 32
 Hidden layer size = input dimension size
 Learning rate = 5e-23
 
@@ -19,12 +19,19 @@ Avg test loss :        152190.835323
 
 ????
 
-* Two hidden layers of the inputs size
 * batchsize=281
-* training and test samples are shuffled
 * Final learning rate=1e-24
+* Two hidden layers of the inputs size
+* training and test samples are shuffled
+-
+Trial 1:
 Avg train loss:         55879.891743
 Avg test loss :        283227.078159
+-
+Trial 2:
+Avg train loss:        430983.318414
+Avg test loss :        223186.686228
+
 
 * Two hidden layers of the inputs size
 * batchsize=2*2*2*281

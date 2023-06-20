@@ -1,7 +1,4 @@
-# Get cpu, gpu or mps device for training.
-import os
 import glob
-import random
 import datetime
 import torch
 import numpy as np
@@ -30,7 +27,6 @@ class NeuralNetwork(nn.Module):
         layer_matrix_dims += (layer_sizes[-1], output_size),
         layers = []
         for m in layer_matrix_dims[:-1]:
-            print(m)
             layers.append(nn.Linear(m[0], m[1], dtype=torch.float64))
             layers.append(nn.ReLU())
         last_matrix_dim = layer_matrix_dims[-1]
@@ -44,10 +40,10 @@ class NeuralNetwork(nn.Module):
 
 
 class NNTrainHarness:
-    def __init__(self, learning_rate=5e-23, batch_size=2*2*281, test_split=0.2, model_name=None):
+    def __init__(self, learning_rate=5e-23, batch_size=None, test_split=0.2, model_name=None):
         if not model_name:
             curr_date = str(datetime.datetime.now()).split(' ')[0]
-            existing_versions = [int(name.split('_')[1]) for name in glob.glob(f'{curr_date}*.tch')]
+            existing_versions = [int(name.split('_')[1].split('.')[0]) for name in glob.glob(f'{curr_date}*.tch')]
             if not existing_versions:
                 new_version = 0
             else:
@@ -61,6 +57,7 @@ class NNTrainHarness:
 
     def setup(self):
         dataset = BTCDataset()
+        self.dataset = dataset
         indices = list(range(len(dataset)))
         np.random.shuffle(indices)
 
@@ -70,8 +67,11 @@ class NNTrainHarness:
         train_sampler = SubsetRandomSampler(indices[:train_cutoff])
         test_sampler = SubsetRandomSampler(indices[train_cutoff:])
 
+        if not self.batch_size:
+            self.batch_size = self.train_size
+
         generator = torch.Generator().manual_seed(1234)
-        self.train_dataloader = DataLoader(dataset, batch_size=self.train_size, sampler=train_sampler, generator=generator)
+        self.train_dataloader = DataLoader(dataset, batch_size=self.batch_size, sampler=train_sampler, generator=generator)
         self.test_dataloader = DataLoader(dataset, batch_size=self.test_size, sampler=test_sampler, generator=generator)
 
         self.device = (
@@ -83,12 +83,13 @@ class NNTrainHarness:
         )
         print(f"Using {self.device} device")
 
-        # Define model
-        dpoint_size = len(dataset[0][0].flatten())
+    # Define model
+    def define_model(self, hidden_layers):
+        dpoint_size = len(self.dataset[0][0].flatten())
         self.model = NeuralNetwork(
             input_size=dpoint_size,
             output_size=1,
-            hidden_layers=[dpoint_size, dpoint_size]
+            hidden_layers=hidden_layers
         ).to(self.device)
         try:
             self.model.load_state_dict(torch.load(self.model_name))
@@ -169,5 +170,11 @@ class NNTrainHarness:
             epochs += 1
         print("Done!")
 
-nn_harness = NNTrainHarness()
+
+
+nn_harness = NNTrainHarness(learning_rate=1e-24, batch_size=281)
+
+dpoint_size = len(nn_harness.dataset[0][0].flatten())
+nn_harness.define_model([dpoint_size, dpoint_size])
+
 nn_harness.run()
