@@ -40,14 +40,27 @@ def make_X_y(data):
 handle_strings(pv)
 
 
-# flatten
+dataset_X, dataset_y = make_X_y(pv)
 train_X, train_y = make_X_y(pv[0:len(pv)-365])
 test_X, test_y = make_X_y(pv[len(pv)-365:])
+
+# flatten 
+dataset_X = [torch.as_tensor(_x.flatten()) for _x in train_X]
+dataset_y = [torch.as_tensor(_y.flatten()) for _y in train_y]
 
 train_X = [torch.as_tensor(_x.flatten()) for _x in train_X]
 test_X = [torch.as_tensor(_x.flatten()) for _x in test_X]
 train_y = torch.as_tensor(train_y).reshape(len(train_y), 1)
 test_y = torch.as_tensor(test_y).reshape(len(test_y), 1)
+
+
+class BTCDataset(Dataset):
+    def __len__(self):
+        return len(dataset_X)
+
+    def __getitem__(self, idx):
+        return dataset_X[idx], dataset_y[idx]
+
 
 class BTCTrainDataset(Dataset):
     def __len__(self):

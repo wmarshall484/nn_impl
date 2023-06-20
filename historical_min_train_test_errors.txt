@@ -17,4 +17,16 @@ Avg train loss:         21710.221076
 Avg test loss :        152190.835323
 
 
+????
 
+* Two hidden layers of the inputs size
+* batchsize=281
+* training and test samples are shuffled
+* Final learning rate=1e-24
+Avg train loss:         55879.891743
+Avg test loss :        283227.078159
+
+* Two hidden layers of the inputs size
+* batchsize=2*2*2*281
+* training and test samples are shuffled
+* learning rate=1e-24
