@@ -1,3 +1,30 @@
+* batchsize=281
+* Two hidden layers of the inputs size
+* training and test samples are shuffled
+Trials:
+-
+Avg train loss:        430983.318414
+Avg test loss :        223186.686228
+-
+Avg train loss:        447826.426649
+Avg test loss :        207156.086273
+-
+Avg train loss:        439214.248431
+Avg test loss :        209635.670153
+
+
+* Two hidden layers of the inputs size
+* batchsize=2*2*2*281
+* training and test samples are shuffled
+Trials:
+-
+Avg train loss:         57941.281285
+Avg test loss :        235994.380267
+
+
+
+
+--HISTORICAL--
 ## Neural nets with 1 hidden layer
 
 Initial batch_size = 32
@@ -15,25 +42,3 @@ Avg test loss :         66675.703985
 # Doubling the size of the hiden layer
 Avg train loss:         21710.221076
 Avg test loss :        152190.835323
-
-
-????
-
-* batchsize=281
-* Final learning rate=1e-24
-* Two hidden layers of the inputs size
-* training and test samples are shuffled
--
-Trial 1:
-Avg train loss:         55879.891743
-Avg test loss :        283227.078159
--
-Trial 2:
-Avg train loss:        430983.318414
-Avg test loss :        223186.686228
-
-
-* Two hidden layers of the inputs size
-* batchsize=2*2*2*281
-* training and test samples are shuffled
-* learning rate=1e-24

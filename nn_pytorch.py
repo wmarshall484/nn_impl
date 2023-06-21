@@ -40,64 +40,9 @@ class NeuralNetwork(nn.Module):
 
 
 class NNTrainHarness:
-    def __init__(self, learning_rate=5e-23, batch_size=None, test_split=0.2, model_name=None):
-        if not model_name:
-            curr_date = str(datetime.datetime.now()).split(' ')[0]
-            existing_versions = [int(name.split('_')[1].split('.')[0]) for name in glob.glob(f'{curr_date}*.tch')]
-            if not existing_versions:
-                new_version = 0
-            else:
-                new_version = max(existing_versions) + 1
-            model_name = f'{curr_date}_{new_version}.tch'
-        self.model_name = model_name
-        self.learning_rate = learning_rate
-        self.batch_size = batch_size
+    def __init__(self, test_split=0.2):
         self.test_split = test_split
-        self.setup()
-
-    def setup(self):
-        dataset = BTCDataset()
-        self.dataset = dataset
-        indices = list(range(len(dataset)))
-        np.random.shuffle(indices)
-
-        train_cutoff = int(len(dataset) * (1-self.test_split))
-        self.train_size = len(indices[:train_cutoff])
-        self.test_size = len(indices[train_cutoff:])
-        train_sampler = SubsetRandomSampler(indices[:train_cutoff])
-        test_sampler = SubsetRandomSampler(indices[train_cutoff:])
-
-        if not self.batch_size:
-            self.batch_size = self.train_size
-
-        generator = torch.Generator().manual_seed(1234)
-        self.train_dataloader = DataLoader(dataset, batch_size=self.batch_size, sampler=train_sampler, generator=generator)
-        self.test_dataloader = DataLoader(dataset, batch_size=self.test_size, sampler=test_sampler, generator=generator)
-
-        self.device = (
-            "cuda"
-            if torch.cuda.is_available()
-            else "mps"
-            if torch.backends.mps.is_available()
-            else "cpu"
-        )
-        print(f"Using {self.device} device")
-
-    # Define model
-    def define_model(self, hidden_layers):
-        dpoint_size = len(self.dataset[0][0].flatten())
-        self.model = NeuralNetwork(
-            input_size=dpoint_size,
-            output_size=1,
-            hidden_layers=hidden_layers
-        ).to(self.device)
-        try:
-            self.model.load_state_dict(torch.load(self.model_name))
-        except Exception:
-            print("Couldn't find model. Creating from scratch.")
-        print(self.model)
-        self.loss_fn = nn.MSELoss()
-        self.optimizer = torch.optim.SGD(self.model.parameters(), lr=self.learning_rate)
+        self._setup_data()
 
     def train(self):
         self.model.train()
@@ -125,56 +70,118 @@ class NNTrainHarness:
 
         return total_loss/self.train_size
 
-    def _print_batch_loss(self, loss, batch):
-        if batch % 100 == 0:
-            loss, current = loss.item(), (batch + 1) * self.batchsize
-            print(f"loss: {loss:>7f}  [{current:>5d}/{self.train_size/self.batchsize:>5d}]")
-
     def test(self):
         self.model.eval()
-        test_loss, correct = 0, 0
+        test_loss = 0
         with torch.no_grad():
             for X, y in self.test_dataloader:
                 X, y = X.to(self.device), y.to(self.device)
                 pred = self.model(X)
                 test_loss += self.loss_fn(pred.flatten(), y.flatten()).item()
         test_loss /= self.test_size
-        correct /= self.test_size
         return test_loss
 
-    def run(self):
-        epochs = 0
+    def run(self, learning_rate=5e-23, batch_size=None):
+        self._setup_runtime(batch_size, learning_rate)
+
+        epoch = 0
         while True:
             try:
                 loss = self.train()
-                if epochs % 100 == 0:
-                    print(f"Epoch {epochs+1}\n-------------------------------")
-                    print(f'Avg train loss:', f'{loss:>8f}'.rjust(20))
-                    test_loss = self.test()
-                    print("Avg test loss :",  f"{test_loss:>8f}".rjust(20))
-                    x,y = self.train_dataloader.__iter__().__next__()
-                    items_to_print = 10
-                    x,y = x[:items_to_print], y[:items_to_print]
-                    x,y = x.to(self.device), y.to(self.device)
-                    with torch.no_grad():
-                        print('First preds')
-                        for x, y in zip(self.model(x), y):
-                            print(str(x.item()).ljust(20),str(y.item()).rjust(20))
+                if epoch % 100 == 0:
+                    self._print_test(epoch, loss)
             except KeyboardInterrupt:
                 to_save = input('save model? [y/n]: ')
                 if to_save == 'y':
                     torch.save(self.model.state_dict(), self.model_name)
+                    print("Saved.")
                     break
                 else:
+                    print("Not saved.")
                     break
-            epochs += 1
-        print("Done!")
+            epoch += 1
+
+    # Define model
+    def define_model(self, hidden_layers, model_name=None):
+        if not model_name:
+            curr_date = str(datetime.datetime.now()).split(' ')[0]
+            existing_versions = [int(name.split('_')[1].split('.')[0]) for name in glob.glob(f'{curr_date}*.tch')]
+            if not existing_versions:
+                new_version = 0
+            else:
+                new_version = max(existing_versions) + 1
+            model_name = f'{curr_date}_{new_version}.tch'
+        self.model_name = model_name
+        dpoint_size = len(self.dataset[0][0].flatten())
+        self.model = NeuralNetwork(
+            input_size=dpoint_size,
+            output_size=1,
+            hidden_layers=hidden_layers
+        ).to(self.device)
+        try:
+            self.model.load_state_dict(torch.load(self.model_name))
+        except Exception:
+            print("Couldn't find model. Creating from scratch.")
+        print(self.model)
+
+    def _setup_data(self):
+        dataset = BTCDataset()
+        self.dataset = dataset
+        indices = list(range(len(dataset)))
+        np.random.shuffle(indices)
+
+        train_cutoff = int(len(dataset) * (1-self.test_split))
+        self.train_size = len(indices[:train_cutoff])
+        self.test_size = len(indices[train_cutoff:])
+        self.train_sampler = SubsetRandomSampler(indices[:train_cutoff])
+        self.test_sampler = SubsetRandomSampler(indices[train_cutoff:])
+
+        self.device = (
+            "cuda"
+            if torch.cuda.is_available()
+            else "mps"
+            if torch.backends.mps.is_available()
+            else "cpu"
+        )
+        print(f"Using {self.device} device")
+
+    def _setup_runtime(self, batch_size, learning_rate):
+        if not batch_size:
+            batch_size = self.train_size
+        self.batch_size = batch_size
+
+        generator = torch.Generator().manual_seed(1234)
+        self.train_dataloader = DataLoader(self.dataset, batch_size=batch_size, sampler=self.train_sampler, generator=generator)
+        self.test_dataloader = DataLoader(self.dataset, batch_size=self.test_size, sampler=self.test_sampler, generator=generator)
+
+        self.loss_fn = nn.MSELoss()
+        self.optimizer = torch.optim.SGD(self.model.parameters(), lr=learning_rate)
+
+    def _print_test(self, epoch, loss):
+        print(f"Epoch {epoch+1}\n-------------------------------")
+        print(f'Avg train loss:', f'{loss:>8f}'.rjust(20))
+        test_loss = self.test()
+        print("Avg test loss :",  f"{test_loss:>8f}".rjust(20))
+        if not (hasattr(self, 'x') and hasattr(self, 'y') and self.x is not None and self.y is not None):
+            x,y = self.test_dataloader.__iter__().__next__()
+            x,y = x[:10], y[:10]
+            self.x,self.y = x.to(self.device), y.to(self.device)
+        with torch.no_grad():
+            print('First preds')
+            print('y'.ljust(20), 'yhat'.rjust(20))
+            for yhat, y in zip(self.model(self.x), self.y):
+                print(f'{y.item():>8f}'.ljust(20),f'{yhat.item():>8f}'.rjust(20))
+
+    def _print_batch_loss(self, loss, batch):
+        if batch % 100 == 0:
+            loss, current = loss.item(), (batch + 1) * self.batchsize
+            print(f"loss: {loss:>7f}  [{current:>5d}/{self.train_size/self.batchsize:>5d}]")
 
 
 
-nn_harness = NNTrainHarness(learning_rate=1e-24, batch_size=281)
+nn_harness = NNTrainHarness()
 
 dpoint_size = len(nn_harness.dataset[0][0].flatten())
-nn_harness.define_model([dpoint_size, dpoint_size])
+nn_harness.define_model([dpoint_size, dpoint_size], model_name='2023-06-19_0.tch')
 
-nn_harness.run()
+nn_harness.run(learning_rate=1e-23, batch_size=2*2*2*281)
